@@ -41,7 +41,7 @@ ENV CONSOLE_WEB_URL=http://127.0.0.1:3000
 ENV SERVICE_API_URL=http://127.0.0.1:5001
 ENV APP_WEB_URL=http://127.0.0.1:3000
 
-EXPOSE 5001
+EXPOSE ${PORT}
 
 # set timezone
 ENV TZ=UTC
@@ -80,4 +80,4 @@ RUN chmod +x /entrypoint.sh
 ARG COMMIT_SHA
 ENV COMMIT_SHA=${COMMIT_SHA}
 
-ENTRYPOINT ["/bin/bash", "/entrypoint.sh"]
+ENTRYPOINT ["/bin/bash", "/entrypoint.sh", "--port", "${PORT}"]

@@ -14,11 +14,18 @@ jobs:
     if: |
       github.event.workflow_run.conclusion == 'success'
     steps:
-      - name: Deploy to server
-        uses: appleboy/ssh-action@v0.1.8
+      - name: Set up Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            ${{ vars.SSH_SCRIPT || secrets.SSH_SCRIPT }}
+          version: 'latest'
+          service_account_key: ${{ secrets.GCR_SERVICE_ACCOUNT_KEY }}
+          project_id: ${{ secrets.GCR_PROJECT_ID }}
+
+      - name: Deploy to CloudRun
+        run: |
+          gcloud run deploy dify-api \
+            --image gcr.io/${{ secrets.GCR_PROJECT_ID }}/dify-api \
+            --platform managed \
+            --region us-central1 \
+            --allow-unauthenticated \
+            --set-env-vars PORT=5001,SECRET_KEY=${{ secrets.SECRET_KEY }},DB_USERNAME=${{ secrets.DB_USERNAME }},DB_PASSWORD=${{ secrets.DB_PASSWORD }},DB_HOST=${{ secrets.DB_HOST }},DB_PORT=${{ secrets.DB_PORT }},DB_DATABASE=${{ secrets.DB_DATABASE }},REDIS_HOST=${{ secrets.REDIS_HOST }},REDIS_PORT=${{ secrets.REDIS_PORT }},REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }},STORAGE_TYPE=${{ secrets.STORAGE_TYPE }},STORAGE_LOCAL_PATH=${{ secrets.STORAGE_LOCAL_PATH }}

@@ -17,6 +17,10 @@ env:
   DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
   DIFY_WEB_IMAGE_NAME: ${{ vars.DIFY_WEB_IMAGE_NAME || 'langgenius/dify-web' }}
   DIFY_API_IMAGE_NAME: ${{ vars.DIFY_API_IMAGE_NAME || 'langgenius/dify-api' }}
+  GCR_PROJECT_ID: ${{ secrets.GCR_PROJECT_ID }}
+  GCR_SERVICE_ACCOUNT_KEY: ${{ secrets.GCR_SERVICE_ACCOUNT_KEY }}
+  GCR_API_IMAGE_NAME: ${{ vars.GCR_API_IMAGE_NAME || 'gcr.io/${{ secrets.GCR_PROJECT_ID }}/dify-api' }}
+  GCR_WEB_IMAGE_NAME: ${{ vars.GCR_WEB_IMAGE_NAME || 'gcr.io/${{ secrets.GCR_PROJECT_ID }}/dify-web' }}
 
 jobs:
   build:
@@ -54,6 +58,11 @@ jobs:
           username: ${{ env.DOCKERHUB_USER }}
           password: ${{ env.DOCKERHUB_TOKEN }}
 
+      - name: Login to Google Container Registry
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ env.GCR_SERVICE_ACCOUNT_KEY }}
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -68,6 +77,18 @@ jobs:
 
       - name: Build Docker image
         id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: "{{defaultContext}}:${{ matrix.context }}"
+          platforms: ${{ matrix.platform }}
+          build-args: COMMIT_SHA=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.revision'] }}
+          labels: ${{ steps.meta.outputs.labels }}
+          outputs: type=image,name=${{ env[matrix.image_name_env] }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=${{ matrix.service_name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service_name }}
+
+      - name: Build and Push Docker image to GCR
+        id: build-gcr
         uses: docker/build-push-action@v6
         with:
           context: "{{defaultContext}}:${{ matrix.context }}"
@@ -118,6 +139,11 @@ jobs:
         with:
           username: ${{ env.DOCKERHUB_USER }}
           password: ${{ env.DOCKERHUB_TOKEN }}
+
+      - name: Login to Google Container Registry
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ env.GCR_SERVICE_ACCOUNT_KEY }}
 
       - name: Extract metadata for Docker
         id: meta
